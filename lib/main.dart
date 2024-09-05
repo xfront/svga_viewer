@@ -5,5 +5,5 @@ import 'app.dart';
 
 void main() {
 
-  runApp(GetMaterialApp(home: FilePickerDemo()));
+  runApp(const GetMaterialApp(home: App()));
 }

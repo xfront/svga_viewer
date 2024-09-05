@@ -4,37 +4,47 @@ import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
 import 'package:svgaplayer_flutter/parser.dart';
 import 'package:svgaplayer_flutter/player.dart';
 
 class SvgaFileListView extends StatefulWidget {
-  List<XFile> svgaFileList;
-
-  SvgaFileListView({super.key, required this.svgaFileList});
+  const SvgaFileListView({super.key});
 
   @override
   _SvgaFileListState createState() => _SvgaFileListState();
 }
 
 class _SvgaFileListState extends State<SvgaFileListView> {
+  final RxList<XFile> svgaFileList = Get.find(tag: "file_list");
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return DropTarget(
       onDragDone: (detail) async {
-        setState(() {
-          widget.svgaFileList = detail.files;
-        });
+        svgaFileList.clear();
+        svgaFileList
+            .addAll(detail.files.where((e) => e.path.endsWith(".svga")));
       },
-      child: SizedBox(
-          width: 1000,
-          height: 500,
-          child: ListView.separated(
-            itemCount: widget.svgaFileList.length,
+      child: Obx(() => ListView.separated(
+            itemCount: svgaFileList.length,
             itemBuilder: (BuildContext context, int index) {
-              XFile file = widget.svgaFileList[index];
+              XFile file = svgaFileList[index];
               return SvgaFilePlayer(key: Key(file.path), svgaFile: file);
             },
-            separatorBuilder: (BuildContext context, int index) => const Divider(),
+            separatorBuilder: (BuildContext context, int index) =>
+                const Divider(),
           )),
     );
   }
@@ -51,32 +61,43 @@ class SvgaFilePlayer extends StatefulWidget {
 
 class _SvgaFileState extends State<SvgaFilePlayer>
     with SingleTickerProviderStateMixin {
-  late SVGAAnimationController animationController;
+  late SVGAAnimationController? animationController;
 
   @override
   void initState() {
-    animationController = SVGAAnimationController(vsync: this);
-    loadAnimation();
     super.initState();
+    animationController = SVGAAnimationController(vsync: this);
+    this._loadAnimation();
   }
 
   @override
   void dispose() {
-    animationController.dispose();
+    animationController?.dispose();
+    animationController = null;
     super.dispose();
   }
 
-  void loadAnimation() async {
+   void _loadAnimation() async {
     final fileData = await widget.svgaFile.readAsBytes();
     final videoItem = await SVGAParser.shared.decodeFromBuffer(fileData);
-    animationController.videoItem = videoItem;
-    animationController
-        .repeat() // Try to use .forward() .reverse()
-        .whenComplete(() => animationController.videoItem = null);
+    if (mounted) {
+      setState(() {
+        animationController?.videoItem = videoItem;
+        _playAnimation();
+      });
+    }
+  }
+
+  void _playAnimation() {
+    if (animationController?.isCompleted == true) {
+      animationController?.reset();
+    }
+    animationController?.repeat(); // or animationController.forward();
   }
 
   @override
   Widget build(BuildContext context) {
-    return SVGAImage(animationController);
+    return SizedBox(width: 300, child:Column(
+        children: [SVGAImage(animationController!), Text(widget.svgaFile.name)]));
   }
 }

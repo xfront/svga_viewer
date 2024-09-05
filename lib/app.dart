@@ -1,124 +1,163 @@
+import 'dart:io';
+
+import 'package:adaptive_scrollbar/adaptive_scrollbar.dart';
 import 'package:cross_file/cross_file.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
-import 'getx/BaseController.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-import 'svgaplayer.dart';
-import 'getx/BaseView.dart';
+import 'package:path/path.dart' as path;
+import 'package:svga_viewer/svgaplayer.dart';
+import 'file_browser/controllers/file_browser.dart';
+import 'file_browser/file_browser.dart';
+import 'file_browser/filesystem_interface.dart';
+import 'file_browser/local_filesystem.dart';
 
-class _FilePickerCtrl extends BaseController {
-  RxList<XFile> _fileList = <XFile>[].obs;
-  String _extension = ".svga";
-  bool _lockParentWindow = false;
-  bool _multiPick = true;
-  FileType _pickingType = FileType.any;
+class App extends StatelessWidget {
+  const App({super.key});
 
-  @override
-  void onDetached() {
-    // TODO: implement onDetached
-  }
-
-  @override
-  void onHidden() {
-    // TODO: implement onHidden
-  }
-
-  @override
-  void onInactive() {
-    // TODO: implement onInactive
-  }
-
-  @override
-  void onPaused() {
-    // TODO: implement onPaused
-  }
-
-  @override
-  void onResumed() {
-    // TODO: implement onResumed
-  }
-
-  void _pickFiles() async {
-    try {
-      _fileList.value = (await FilePicker.platform.pickFiles(
-            compressionQuality: 30,
-            type: _pickingType,
-            allowMultiple: _multiPick,
-            onFileLoading: (FilePickerStatus status) => print(status),
-            allowedExtensions: _extension.isNotEmpty
-                ? _extension.replaceAll(' ', '').split(',')
-                : null,
-            dialogTitle: "",
-            initialDirectory: "/",
-            lockParentWindow: _lockParentWindow,
-          ))
-              ?.files
-              .map((e) => e.xFile)
-              .toList() ??
-          [];
-    } on PlatformException catch (e) {
-    } catch (e) {}
-  }
-}
-
-class FilePickerDemo extends BaseStatelessWidget<_FilePickerCtrl> {
-  FilePickerDemo() {
-    Get.lazyPut(() => _FilePickerCtrl());
+  ThemeData createTheme(Color color, Brightness brightness) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: color,
+      brightness: brightness,
+    );
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      badgeTheme: BadgeThemeData(
+        backgroundColor: colorScheme.primary,
+        textColor: colorScheme.onPrimary,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SVGA查看器'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.only(left: 5.0, right: 5.0),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(left: 15.0, right: 15.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                '动作',
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0, bottom: 20.0),
-                child: Wrap(
-                  spacing: 10.0,
-                  runSpacing: 10.0,
-                  children: <Widget>[
-                    SizedBox(
-                      width: 120,
-                      child: FloatingActionButton.extended(
-                          onPressed: () => controller._pickFiles(),
-                          label: Text(controller._multiPick ? '选择多文件' : '选择文件'),
-                          icon: const Icon(Icons.description)),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              const SizedBox(
-                height: 20.0,
-              ),
-              Obx(() => SvgaFileListView(
-                    svgaFileList: controller._fileList.value,
-                  )
-              )
-            ],
-          ),
-        ),
-      ),
+    return MaterialApp(
+      title: 'flutter_fancy_tree_view',
+      debugShowCheckedModeBanner: false,
+      home: const HomeView(),
     );
+  }
+}
+
+class HomeView extends StatelessWidget {
+  const HomeView({super.key});
+
+  /// Necessary when resizing the app so the tree view example inside the
+  /// main view doesn't loose its tree states.
+  static const treeViewKey = GlobalObjectKey('<TreeViewKey>');
+  static const mainViewKey = GlobalObjectKey('<MainViewKey>');
+
+  @override
+  Widget build(BuildContext context) {
+    PreferredSizeWidget? appBar;
+    Widget? body;
+    Widget? drawer;
+
+    Get.put(tag: "file_list", permanent: true, <XFile>[].obs ) ;
+
+    if (MediaQuery.of(context).size.width > 720) {
+      body = const Row(
+        children: [
+          SizedBox(width: 300, child: FileTreeView(key: treeViewKey)),
+          VerticalDivider(width: 1),
+          Expanded(child: SvgaFileListView(key: mainViewKey)),
+        ],
+      );
+    } else {
+      appBar = AppBar(
+        title: const Text('SVGA Viewer'),
+        notificationPredicate: (_) => false,
+        titleSpacing: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1),
+        ),
+      );
+      body = SvgaFileListView(key: mainViewKey);
+      drawer = const Drawer(child: FileTreeView(key: treeViewKey));
+    }
+
+    return Scaffold(
+      appBar: appBar,
+      body: body,
+      drawer: drawer,
+    );
+  }
+}
+
+FileSystemEntryStat? rootEntry;
+
+class FileTreeView extends StatelessWidget {
+  final fs = const LocalFileSystem();
+
+  const FileTreeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final _verticalScrollController = ScrollController();
+    final _horizontalScrollController = ScrollController();
+
+    return FutureBuilder(
+      future: checkAndRequestPermission(fs),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final data = snapshot.data;
+          if (data != null) {
+            final controller = FileBrowserController(fs: fs);
+            controller.updateRoots(data);
+            return FileBrowser(
+                controller: controller, scrollCtrl: _verticalScrollController);
+          }
+        }
+        return Container();
+      }
+    );
+  }
+
+  Future<List<FileSystemEntryStat>?> checkAndRequestPermission(
+      LocalFileSystem fs) async {
+    var entry = FileSystemEntry.blank();
+    if (Platform.isLinux || Platform.isMacOS) {
+      entry = FileSystemEntry(
+          name: '/', path: '/', relativePath: '/', isDirectory: true);
+    } else if (Platform.isAndroid || Platform.isIOS) {
+      var status = await Permission.storage.status;
+      if (status.isDenied) {
+        // We didn't ask for permission yet or the permission has been denied before but not permanently.
+        status = await Permission.storage.request();
+      }
+      if (!status.isGranted) {
+        return null;
+      }
+      await checkAndRequestManageStoragePermission();
+      final directories = await getExternalStorageDirectories();
+      final roots = await Future.wait(directories!.map((dir) {
+        final name = path.basename(dir.path);
+        final relativePath = name;
+        final dirPath = dir.path;
+        final entry = FileSystemEntry(
+            name: name,
+            path: dirPath,
+            relativePath: relativePath,
+            isDirectory: true);
+        return fs.stat(entry);
+      }));
+      return roots;
+    }
+    rootEntry = await fs.stat(entry);
+    return List.from([rootEntry]);
+  }
+
+  Future<bool> checkAndRequestManageStoragePermission() async {
+    var status = await Permission.manageExternalStorage.status;
+    if (status.isDenied) {
+      status = await Permission.manageExternalStorage.request();
+    }
+    return status.isGranted;
   }
 }

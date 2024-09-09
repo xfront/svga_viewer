@@ -13,11 +13,11 @@ class FileSystemEntry {
       required this.isDirectory});
 
   Map<String, dynamic> toJson() {
-    var map = new Map<String, dynamic>();
-    map['name'] = this.name;
-    map['relativePath'] = this.relativePath;
-    map['path'] = this.path;
-    map['isDirectory'] = this.isDirectory;
+    var map = <String, dynamic>{};
+    map['name'] = name;
+    map['relativePath'] = relativePath;
+    map['path'] = path;
+    map['isDirectory'] = isDirectory;
     return map;
   }
 
@@ -26,17 +26,30 @@ class FileSystemEntry {
     String relativePath = json['relativePath'];
     String path = json['path'];
     bool isDirectory = json['isDirectory'];
-    return new FileSystemEntry(
+    return FileSystemEntry(
         name: name,
         path: path,
         relativePath: relativePath,
         isDirectory: isDirectory);
   }
 
+  factory FileSystemEntry.root() {
+    return FileSystemEntry(
+        isDirectory: true, name: '/', path: '/', relativePath: '/');
+  }
+
   factory FileSystemEntry.blank() {
     return FileSystemEntry(
         isDirectory: false, name: '', path: '', relativePath: '');
   }
+
+  @override
+  bool operator ==(Object rhs) =>
+      identical(this, rhs) ||
+          rhs is FileSystemEntry && path == rhs.path;
+
+  @override
+  int get hashCode => path.hashCode;
 }
 
 class FileSystemEntryStat {
@@ -48,9 +61,9 @@ class FileSystemEntryStat {
 
   FileSystemEntryStat(
       {required this.entry,
-      required this.lastModified,
-      required this.size,
-      required this.mode});
+      this.lastModified = 0,
+      this.size = 0,
+      this.mode = 0});
 
   factory FileSystemEntryStat.fromJson(dynamic json) {
     final entry = FileSystemEntry.fromJson(json['entry']);
@@ -102,7 +115,7 @@ abstract class FileSystemInterface {
 
   Future<FileSystemEntryStat> stat(FileSystemEntry entry);
 
-  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry);
+  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry) ;
 
   Future<Widget> getThumbnail(FileSystemEntry entry,
       {double? width, double? height}) async {

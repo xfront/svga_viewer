@@ -7,11 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 
 class ListViewLayout extends StatelessWidget {
-  ScrollController? scrollCtrl;
   final FileBrowserController fileCtrl;
   final FileSystemEntry entry;
 
-  ListViewLayout({required this.fileCtrl, required this.entry, this.scrollCtrl});
+  ListViewLayout({required this.fileCtrl, required this.entry});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +22,6 @@ class ListViewLayout extends StatelessWidget {
             final showParentEntry = !fileCtrl.isRootEntry(this.entry);
             return ListView.separated(
               scrollDirection: Axis.vertical,
-              controller: scrollCtrl,
               shrinkWrap: true,
               itemCount: data.length + (showParentEntry ? 1 : 0),
               padding: EdgeInsets.zero,

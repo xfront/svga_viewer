@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../filesystem_interface.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
@@ -21,8 +25,15 @@ class FileBrowserController extends GetxController {
 
   final RxSet<FileSystemEntry> selected;
 
-  FileBrowserController({required this.fs, this.onSelectionUpdate})
-      : selected = RxSet<FileSystemEntry>();
+  FileBrowserController({required this.fs, this.onSelectionUpdate, required FileSystemEntry expand})
+      : selected = RxSet<FileSystemEntry>() {
+    final SharedPreferencesAsync asyncPrefs = SharedPreferencesAsync();
+    ever(currentDir, (v) {
+      var encoded = json.encode(v);
+      asyncPrefs.setString('fbc_last_path', encoded).ignore();
+    });
+    currentDir.value = expand;
+  }
 
   Future<List<FileSystemEntryStat>> sortedListing(FileSystemEntry entry) async {
     if (isRootEntry(entry)) {
@@ -59,14 +70,14 @@ class FileBrowserController extends GetxController {
   void updateRoots(List<FileSystemEntryStat> roots) {
     this.roots = roots;
     rootPathsSet.clear();
-    roots.forEach((entry) {
+    for (var entry in roots) {
       final parent = path.dirname(entry.entry.path);
       // On Linux, parent of '/' is '/', which poses a problem since we have a fake root
       // To deal with this, we don't add '/' to rootPathsSet
       if (parent != '/') {
         rootPathsSet.add(parent);
       }
-    });
+    }
   }
 
   bool isRootEntry(FileSystemEntry entry) {

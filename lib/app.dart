@@ -1,15 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:adaptive_scrollbar/adaptive_scrollbar.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_resizable_container/flutter_resizable_container.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:svga_viewer/svgaplayer.dart';
 import 'file_browser/controllers/file_browser.dart';
 import 'file_browser/file_browser.dart';
@@ -36,21 +39,38 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'flutter_fancy_tree_view',
       debugShowCheckedModeBanner: false,
-      home: const HomeView(),
+      home: HomeView(),
     );
   }
 }
 
-class HomeView extends StatelessWidget {
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
+  @override
+  HomeViewState createState() => HomeViewState();
+}
+
+class HomeViewState extends State<HomeView> {
   /// Necessary when resizing the app so the tree view example inside the
   /// main view doesn't loose its tree states.
   static const treeViewKey = GlobalObjectKey('<TreeViewKey>');
   static const mainViewKey = GlobalObjectKey('<MainViewKey>');
+
+  final controller = ResizableController();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,14 +78,19 @@ class HomeView extends StatelessWidget {
     Widget? body;
     Widget? drawer;
 
-    Get.put(tag: "file_list", permanent: true, <XFile>[].obs ) ;
+    Get.put(tag: "file_list", permanent: true, <XFile>[].obs);
 
     if (MediaQuery.of(context).size.width > 720) {
-      body = const Row(
-        children: [
-          SizedBox(width: 300, child: FileTreeView(key: treeViewKey)),
-          VerticalDivider(width: 1),
-          Expanded(child: SvgaFileListView(key: mainViewKey)),
+      body = ResizableContainer(
+        controller: controller,
+        direction: Axis.horizontal,
+        children: const [
+          ResizableChild(
+              size: ResizableSize.ratio(0.3),
+              child: FileTreeView(key: treeViewKey)),
+          ResizableChild(
+              size: ResizableSize.ratio(0.7),
+              child: SvgaFileListView(key: mainViewKey)),
         ],
       );
     } else {
@@ -78,7 +103,7 @@ class HomeView extends StatelessWidget {
           child: Divider(height: 1),
         ),
       );
-      body = SvgaFileListView(key: mainViewKey);
+      body = const SvgaFileListView(key: mainViewKey);
       drawer = const Drawer(child: FileTreeView(key: treeViewKey));
     }
 
@@ -99,24 +124,28 @@ class FileTreeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _verticalScrollController = ScrollController();
-    final _horizontalScrollController = ScrollController();
-
     return FutureBuilder(
-      future: checkAndRequestPermission(fs),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          final data = snapshot.data;
-          if (data != null) {
-            final controller = FileBrowserController(fs: fs);
-            controller.updateRoots(data);
-            return FileBrowser(
-                controller: controller, scrollCtrl: _verticalScrollController);
+        future: Future.wait([checkAndRequestPermission(fs), loadCurrentDir()]),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            final data = snapshot.data;
+            if (data != null) {
+              final controller = FileBrowserController(fs: fs, expand:data[1] as FileSystemEntry);
+              controller.updateRoots(data[0] as List<FileSystemEntryStat>);
+              return FileBrowser(controller: controller);
+            }
           }
-        }
-        return Container();
-      }
-    );
+          return Container();
+        });
+  }
+
+  Future<FileSystemEntry?> loadCurrentDir() async {
+    final SharedPreferencesAsync asyncPrefs = SharedPreferencesAsync();
+
+    var v = await asyncPrefs.getString('fbc_last_path');
+    if (v == null) return FileSystemEntry.blank();
+    var decoded = json.decode(v);
+    return FileSystemEntry.fromJson(decoded);
   }
 
   Future<List<FileSystemEntryStat>?> checkAndRequestPermission(

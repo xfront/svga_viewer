@@ -41,6 +41,7 @@ dependencies:
   cross_file: ^0.3.4+2
   chunked_stream: ^1.4.2
   filesize: ^2.0.1
+  file_manager: ^1.0.2
   image: ^4.2.0
   flutter_fancy_tree_view: ^1.6.0
   two_dimensional_scrollables: ^0.3.1
@@ -48,6 +49,8 @@ dependencies:
   path_provider: ^2.1.4
   permission_handler: ^11.3.1
   adaptive_scrollbar: ^2.1.0
+  flutter_resizable_container: ^2.0.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

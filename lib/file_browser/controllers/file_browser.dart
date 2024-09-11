@@ -25,7 +25,10 @@ class FileBrowserController extends GetxController {
 
   final RxSet<FileSystemEntry> selected;
 
-  FileBrowserController({required this.fs, this.onSelectionUpdate, required FileSystemEntry expand})
+  FileBrowserController(
+      {required this.fs,
+      this.onSelectionUpdate,
+      required FileSystemEntry expand})
       : selected = RxSet<FileSystemEntry>() {
     final SharedPreferencesAsync asyncPrefs = SharedPreferencesAsync();
     ever(currentDir, (v) {

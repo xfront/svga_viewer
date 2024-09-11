@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:io';
+
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +24,7 @@ class TreeViewLayout extends StatelessWidget {
   final FileSystemEntry entry;
   final FileSystemEntry expand;
   final FileBrowserController fileCtrl;
-  final RxList<XFile> svgaFileList = Get.find(tag: "file_list");
+  final RxList<File> svgaFileList = Get.find(tag: "file_list");
 
   TreeViewLayout(
       {super.key,
@@ -126,11 +128,11 @@ class TreeViewLayout extends StatelessWidget {
     };
   }
 
-  List<XFile> filterSvga(TreeViewNode<Node> node) {
+  List<File> filterSvga(TreeViewNode<Node> node) {
     return (node.content.isDir ? node.children : [node])
         .where(
             (e) => !e.content.isDir && e.content.entry.name.endsWith(".svga"))
-        .map((e) => XFile(e.content.entry.path))
+        .map((e) => File(e.content.entry.path))
         .toList(growable: true);
   }
 
@@ -138,7 +140,8 @@ class TreeViewLayout extends StatelessWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       treeController.expandAll();
 
-      TreeViewNode<Node>? findNode(List<TreeViewNode<Node>> roots, FileSystemEntry target) {
+      TreeViewNode<Node>? findNode(
+          List<TreeViewNode<Node>> roots, FileSystemEntry target) {
         for (var n in roots) {
           if (n.content.entry == target) {
             return n;
@@ -148,9 +151,11 @@ class TreeViewLayout extends StatelessWidget {
         }
         return null;
       }
+
       final node = findNode(roots, expand);
       if (node != null) {
-        treeController.toggleNode(node);
+        _selectedNode = node;
+        treeController.expandNode(node);
       }
     });
 
@@ -176,28 +181,33 @@ class TreeViewLayout extends StatelessWidget {
             onNodeToggle: (TreeViewNode<Node> node) {
               _selectedNode = node;
             },
+            cacheExtent: 100,
             treeNodeBuilder: _treeNodeBuilder,
             treeRowBuilder: _treeRowBuilder,
-            // No internal indentation, the custom treeNodeBuilder applies its
-            // own indentation to decorate in the indented space.
-            indentation: TreeViewIndentationType.none,
+            indentation: TreeViewIndentationType.standard,
           ),
         ),
       ),
     );
   }
 
-  List<TreeViewNode<Node>> fileList2NodeList(List<FileSystemEntryStat> fileList) {
+  List<TreeViewNode<Node>> fileList2NodeList(
+      List<FileSystemEntryStat> fileList) {
     return fileList.map((e) => TreeViewNode(e)).toList();
   }
 
-  Future<List<TreeViewNode<Node>>>  expandTo(List<FileSystemEntryStat> roots, FileSystemEntry expand) async {
+  Future<List<TreeViewNode<Node>>> expandTo(
+      List<FileSystemEntryStat> roots, FileSystemEntry expand) async {
     List<TreeViewNode<Node>> rootNodes = fileList2NodeList(roots);
     if (expand == FileSystemEntry.blank()) return rootNodes;
     int idx = roots.indexWhere((e) => expand.path.startsWith(e.entry.path));
-    TreeViewNode<Node> parent =
-        idx != -1 ? rootNodes[idx] : TreeViewNode(FileSystemEntryStat(entry: FileSystemEntry.root()));
-    var parts = expand.path.substring(parent.content.entry.path.length).split("/");
+    TreeViewNode<Node> parent = idx != -1
+        ? rootNodes[idx]
+        : TreeViewNode(FileSystemEntryStat(entry: FileSystemEntry.root()));
+    var parts =
+        expand.path.substring(parent.content.entry.path.length).split("/");
+    if (parts.isEmpty || parts[0].isEmpty) return rootNodes;
+
     for (int i = 0; i < parts.length; ++i) {
       var children = await fileCtrl.sortedListing(parent.content.entry);
       parent.children.addAll(fileList2NodeList(children));
@@ -205,10 +215,13 @@ class TreeViewLayout extends StatelessWidget {
       String part = parts[i];
       FileSystemEntry entry = FileSystemEntry(
           name: part,
-          path: parent.content.entry.path=="/"?"/$part":"${parent.content.entry.path}/$part",
+          path: parent.content.entry.path == "/"
+              ? "/$part"
+              : "${parent.content.entry.path}/$part",
           relativePath: part,
-          isDirectory: i<parts.length-1 || expand.isDirectory);
-      parent = parent.children[parent.children.indexWhere((e)=>e.content.entry == entry)];
+          isDirectory: i < parts.length - 1 || expand.isDirectory);
+      parent = parent.children[
+          parent.children.indexWhere((e) => e.content.entry == entry)];
     }
     return rootNodes;
   }
@@ -216,7 +229,7 @@ class TreeViewLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-        future: fileCtrl.sortedListing(entry).then((e)=>expandTo(e, expand)),
+        future: fileCtrl.sortedListing(entry).then((e) => expandTo(e, expand)),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             final data = snapshot.data;

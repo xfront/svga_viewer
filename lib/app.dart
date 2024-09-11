@@ -13,39 +13,12 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:svga_viewer/path_view.dart';
 import 'package:svga_viewer/svgaplayer.dart';
 import 'file_browser/controllers/file_browser.dart';
 import 'file_browser/file_browser.dart';
 import 'file_browser/filesystem_interface.dart';
 import 'file_browser/local_filesystem.dart';
-
-class App extends StatelessWidget {
-  const App({super.key});
-
-  ThemeData createTheme(Color color, Brightness brightness) {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: color,
-      brightness: brightness,
-    );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: colorScheme,
-      badgeTheme: BadgeThemeData(
-        backgroundColor: colorScheme.primary,
-        textColor: colorScheme.onPrimary,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'flutter_fancy_tree_view',
-      debugShowCheckedModeBanner: false,
-      home: HomeView(),
-    );
-  }
-}
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -78,7 +51,7 @@ class HomeViewState extends State<HomeView> {
     Widget? body;
     Widget? drawer;
 
-    Get.put(tag: "file_list", permanent: true, <XFile>[].obs);
+    Get.put(tag: "file_list", permanent: true, <File>[].obs);
 
     if (MediaQuery.of(context).size.width > 720) {
       body = ResizableContainer(
@@ -130,9 +103,13 @@ class FileTreeView extends StatelessWidget {
           if (snapshot.hasData) {
             final data = snapshot.data;
             if (data != null) {
-              final controller = FileBrowserController(fs: fs, expand:data[1] as FileSystemEntry);
+              var curDir = data[1] as FileSystemEntry;
+              final controller = FileBrowserController(fs: fs, expand: curDir);
               controller.updateRoots(data[0] as List<FileSystemEntryStat>);
-              return FileBrowser(controller: controller);
+              return Column(children: [
+                PathView(controller.currentDir),
+                Expanded(child: FileBrowser(controller: controller)),
+              ]);
             }
           }
           return Container();

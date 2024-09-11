@@ -13,14 +13,17 @@ class FileBrowser extends StatelessWidget {
   late final FileBrowserController controller;
 
   FileBrowser(
-      {super.key, List<FileSystemEntryStat>? roots, FileBrowserController? controller}) {
+      {super.key,
+      List<FileSystemEntryStat>? roots,
+      FileBrowserController? controller}) {
     if (controller != null) {
       this.controller = controller;
     } else {
       if (roots == null) {
         throw 'Must specify roots or controller';
       }
-      this.controller = FileBrowserController(fs: LocalFileSystem(), expand: FileSystemEntry.blank());
+      this.controller = FileBrowserController(
+          fs: const LocalFileSystem(), expand: FileSystemEntry.blank());
       this.controller.updateRoots(roots);
       this.controller.showDirectoriesFirst.value = true;
     }
@@ -28,7 +31,6 @@ class FileBrowser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var entry = controller.currentDir.value;
     return Obx(() {
       switch (controller.currentLayout.value) {
         case Layout.LIST_VIEW:
@@ -39,7 +41,9 @@ class FileBrowser extends StatelessWidget {
               fileCtrl: controller, entry: controller.currentDir.value);
         case Layout.TREE_VIEW:
           return TreeViewLayout(
-              fileCtrl: controller, entry: FileSystemEntry.blank(), expand: entry);
+              fileCtrl: controller,
+              entry: FileSystemEntry.blank(),
+              expand: controller.currentDir.value);
       }
     });
   }

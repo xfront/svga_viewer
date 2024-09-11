@@ -86,10 +86,7 @@ class GridViewLayout extends StatelessWidget {
                         child: GridViewEntry(
                             fs: fileCtrl.fs,
                             entry: entry,
-                            showInfo: showInfo)
-                    )
-                  )
-                );
+                            showInfo: showInfo))));
               },
             );
           } else {
@@ -104,7 +101,8 @@ class GridViewEntry extends StatelessWidget {
   final FileSystemEntryStat entry;
   final bool showInfo;
 
-  const GridViewEntry({required this.fs, required this.entry, this.showInfo = false});
+  const GridViewEntry(
+      {required this.fs, required this.entry, this.showInfo = false});
 
   @override
   Widget build(BuildContext context) {

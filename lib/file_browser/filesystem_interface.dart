@@ -45,8 +45,7 @@ class FileSystemEntry {
 
   @override
   bool operator ==(Object rhs) =>
-      identical(this, rhs) ||
-          rhs is FileSystemEntry && path == rhs.path;
+      identical(this, rhs) || rhs is FileSystemEntry && path == rhs.path;
 
   @override
   int get hashCode => path.hashCode;
@@ -57,7 +56,8 @@ class FileSystemEntryStat {
   int lastModified;
   int size;
   int mode;
-  bool get isDir  => entry.isDirectory;
+
+  bool get isDir => entry.isDirectory;
 
   FileSystemEntryStat(
       {required this.entry,
@@ -115,7 +115,7 @@ abstract class FileSystemInterface {
 
   Future<FileSystemEntryStat> stat(FileSystemEntry entry);
 
-  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry) ;
+  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry);
 
   Future<Widget> getThumbnail(FileSystemEntry entry,
       {double? width, double? height}) async {

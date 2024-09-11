@@ -52,8 +52,7 @@ class ListViewLayout extends StatelessWidget {
                       if (entry.entry.isDirectory) {
                         if (showParentEntry &&
                             index == 0 &&
-                            fileCtrl.rootPathsSet
-                                .contains(entry.entry.path)) {
+                            fileCtrl.rootPathsSet.contains(entry.entry.path)) {
                           fileCtrl.currentDir.value = FileSystemEntry.blank();
                         } else {
                           fileCtrl.currentDir.value = entry.entry;

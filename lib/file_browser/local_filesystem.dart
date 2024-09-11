@@ -23,10 +23,8 @@ class LocalFileSystem extends FileSystemInterface {
       final ext = path.extension(entry.name).toLowerCase();
       if (ext == '.png' || ext == '.jpg' || ext == '.jpeg') {
         await _semaphore.acquire();
-        final bytes = await compute(
-            getThumbnailFromFile,
-             ComputeArguments(
-                path: entry.path, width: width, height: height));
+        final bytes = await compute(getThumbnailFromFile,
+            ComputeArguments(path: entry.path, width: width, height: height));
         _semaphore.release();
         return Image.memory(Uint8List.fromList(bytes), fit: BoxFit.contain);
       }
@@ -64,10 +62,10 @@ class LocalFileSystem extends FileSystemInterface {
       final relativePath = path.join(entry.relativePath, name);
       var child = FileSystemEntry.blank();
       if (File(file.path).existsSync()) {
-        child =  FileEntry(
-            name: name, path: file.path, relativePath: relativePath);
+        child =
+            FileEntry(name: name, path: file.path, relativePath: relativePath);
       } else if (Directory(file.path).existsSync()) {
-        child =  FolderEntry(
+        child = FolderEntry(
             name: name, path: file.path, relativePath: relativePath);
       }
       files.add(await stat(child));
